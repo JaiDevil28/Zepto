@@ -1,0 +1,608 @@
+import requests
+import json
+import pandas as pd
+from datetime import datetime
+today_date = datetime.today().strftime('%Y-%m-%d')
+#   python  zepto_bid_optimisation.py
+# cd "C:\Users\Gopal\Desktop\zepto_apis"
+excel_file=r"C:\Users\Gopal\Desktop\blinki_automate\Zepto\zepto_bid_optimisation_input_output.xlsx" # for azah
+#excel_file=r"C:\Users\Gopal\Desktop\blinki_automate\Zepto\Slovic_bid_optimisation_input_output.xlsx"# for slovic
+
+#authorization="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5MTJkMDdjNC0wMTRjLTQ2MWItYjkxNC02ZjUwNTE3YWEzOTQiLCJyb2xlSWQiOiJmYjYzMDZiMy1jYmMxLTQxODEtYmYyMS1lNGM0Y2YwMDUzODUiLCJodHRwczovL2hhc3VyYS5pby9qd3QvY2xhaW1zIjp7IngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6IkRlZmF1bHQiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbIkRlZmF1bHQiXX0sInJvbGVOYW1lIjoiRXh0ZXJuYWwgU3VwZXIgQWRzIEFkbWluIiwiZW1haWxJZCI6ImFxaWJAcG93ZXJob3VzZTkxLmNvbSIsInNlc3Npb25JZCI6ImYyNWEwN2RjLWNiZTQtNDY5NC05N2U0LWFkM2FlNGVkOTc1NS0xNzQwMTQzMzMzNjU3IiwiYXBwbGljYXRpb25JZCI6ImQwY2Q0ODczLTdjYjMtNGM3Yy05YTI1LTNiMTA5YTBkMjMwMSIsImNhdGVnb3J5IjoiRXh0ZXJuYWwiLCJleHAiOjE3NDAxNjI1OTksInVzZXJJZCI6IjkxMmQwN2M0LTAxNGMtNDYxYi1iOTE0LTZmNTA1MTdhYTM5NCIsImlhdCI6MTc0MDE0MzMzM30.WGLJ3-HdC0-9fXsY5d-6fLIiOFYg7_dwP1YbP5Mou14"
+
+
+def login_authorization():   
+   url="https://fcc.zepto.co.in/api/v1/auth/sign-in?applicationId=d0cd4873-7cb3-4c7c-9a25-3b109a0d2301"
+  
+   payload={"email":your email, "password": password}
+  
+   
+   response=requests.post(url,json=payload)
+   
+   if response.status_code!=200:
+       print("error in login response ",response.status_code,response.text)
+   response_data=response.json()
+   return response_data['jwtToken']
+   #print(authorization)
+
+
+
+def main():
+    
+    input_df=pd.read_excel(excel_file,sheet_name='input')
+    
+    #input_city_df=pd.read_excel(excel_file,sheet_name='city_input')  
+    input_dict={}
+    city_dict={}
+    """
+    for row in range(len(input_city_df)):
+        id = input_city_df['ID'][row]
+        region = input_city_df['Region'][row]
+        if region not in city_dict:
+            city_dict[region] = []
+        city_dict[region].append(id)"""
+       
+    auth=login_authorization()
+    #auth="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5MTJkMDdjNC0wMTRjLTQ2MWItYjkxNC02ZjUwNTE3YWEzOTQiLCJyb2xlSWQiOiJmYjYzMDZiMy1jYmMxLTQxODEtYmYyMS1lNGM0Y2YwMDUzODUiLCJodHRwczovL2hhc3VyYS5pby9qd3QvY2xhaW1zIjp7IngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6IkRlZmF1bHQiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbIkRlZmF1bHQiXX0sInJvbGVOYW1lIjoiRXh0ZXJuYWwgU3VwZXIgQWRzIEFkbWluIiwiZW1haWxJZCI6ImFxaWJAcG93ZXJob3VzZTkxLmNvbSIsInNlc3Npb25JZCI6IjZjNTM3OTk2LWM0N2YtNDQ4OC1hMjJiLTcwMTc1MTcwN2ExNy0xNzQwNDcwMTUxNDg0IiwiYXBwbGljYXRpb25JZCI6ImQwY2Q0ODczLTdjYjMtNGM3Yy05YTI1LTNiMTA5YTBkMjMwMSIsImNhdGVnb3J5IjoiRXh0ZXJuYWwiLCJleHAiOjE3NDA1MDgxOTksInVzZXJJZCI6IjkxMmQwN2M0LTAxNGMtNDYxYi1iOTE0LTZmNTA1MTdhYTM5NCIsImlhdCI6MTc0MDQ3MDE1MX0.5seViYUoPMbuKCW0BUDqMp7XrqLgGu6TDR3Ra03ga-o"
+    print("authorization ",auth)
+    for row in range(len(input_df)):
+        campaign_id = input_df['Campaign Id'][row]
+        campaign_name=input_df['Campaign Name'][row]
+        target = str(input_df['Target'][row]).strip().lower()
+        value = input_df['Value'][row]
+        
+        if campaign_id not in input_dict:
+            input_dict[campaign_id] = {'keyword': [], 'Campaign_name':'','bid': []}
+        input_dict[campaign_id]['keyword'].append(target)
+        input_dict[campaign_id]['bid'].append(value)
+        input_dict[campaign_id]['Campaign_name']=str(campaign_name)
+        
+    output_df=input_df.copy()
+    output_df['status']='no'
+    keyword_report_data=[]
+    
+    
+    # IF U WANT TO ADD KEYWORD
+    
+    
+    keywords_dict = {}
+    """
+    for campaign_name, group in input_df.groupby('Campaign Id'):
+        keyword_list = []
+        for _, row in group.iterrows():
+            keywords = row['Target']
+            if pd.isna(keywords) or keywords == '':
+                continue
+            for keyword in keywords.split(','):
+                keyword_text=keyword.strip().lower()
+                #match_type = keyword.split('|')
+                match_type ='PHRASE'
+                #if match_type.upper() == 'E':
+                #    match_type_str = 'EXACT'
+                #keyword_dict = {"text": keyword_text, "match_type": match_type, "bid_value": 10}
+                #elif match_type.upper() == 'P':
+                 #   match_type_str = 'PHRASE'
+                #keyword_dict = {"text": keyword_text, "match_type": match_type, "bid_value": 15} 
+                keyword_dict = {"text": keyword_text, "match_type": match_type, "is_negative":True} 
+                keyword_list.append(keyword_dict)
+                
+        keywords_dict[campaign_name] = keyword_list"""
+      
+  
+    output_df= optimization(input_dict,output_df,keyword_report_data,keywords_dict,city_dict,auth) # for keyword addition
+    #output_df= optimization(input_dict,output_df,keyword_report_data,keyword_dict) 
+    #keyword_report_df=pd.DataFrame(keyword_report_d)
+    with pd.ExcelWriter(excel_file, engine='openpyxl', mode='a',if_sheet_exists='replace') as writer:
+            output_df.to_excel(writer, sheet_name='output', index=False)
+    #with pd.ExcelWriter(excel_file, engine='openpyxl', mode='a',if_sheet_exists='replace') as writer:
+    #        keyword_report_df.to_excel(writer, sheet_name='keyword_report_campaign', index=False)  
+   
+
+
+def optimization(input_dict,output_df,keyword_report_data,keyword_dict,city_dict,auth):
+   print("check rn ",auth)
+   headers = {
+            "Authorization": auth,
+            #  "Authorization"         # for azah
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Referer": "https://brands.zepto.co.in/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Origin": "https://brands.zepto.co.in",
+            "Accept-Encoding": "gzip, deflate, br",}
+   #print("check1")
+   cntt=0
+   for campaign_id in input_dict.keys():       
+       try:  
+        
+         cntt+=1
+         #print("check 2 ",campaign_id)
+         status,message = bid_update(headers,int(campaign_id),input_dict,output_df,city_dict)
+         #status,message=campaign_enable(headers,campaign_id,input_dict,output_df)
+         #status,message=keyword_addition(headers,campaign_id,input_dict,output_df,keyword_dict)
+         print(status,message)
+         output_df.loc[output_df['Campaign Id'] == int(campaign_id), 'status'] = message 
+       except:
+           continue        
+   
+   return output_df
+
+
+def check_keyword_in_config(keyword,keyword_config):
+    for entry in keyword_config:
+        if entry['keyword'].lower() == keyword.lower():
+            return True
+    return False
+
+
+def keyword_addition(headers,campaign_id,input_dict,output_df,keyword_dict):
+  
+  try:      
+    url=f"https://fcc.zepto.co.in/ads-campaign-manager/api/v1/campaigns/pla/{campaign_id}"
+    get_response=requests.get(url,headers=headers)
+    get_response_data=get_response.json() 
+    if get_response.status_code !=200:
+        print("error ",get_response.text)
+        return False,get_response.text
+    cities=[]
+    if(len(get_response_data["city_targeting"])==0):
+        geo_targeting_type="ALL"
+    else:
+         cities=[item['city_id'] for item in get_response_data["city_targeting"]]
+         geo_targeting_type="MANUAL"
+    product_ids=[item["product_variant_id"] for item in get_response_data["ad_assets_pla"]]       
+    
+    #subtargeting_ids=[item["subcategory_id"] for item in get_response_data["subcategory_targeting"]]
+    print("check 4",product_ids)
+    campaign_keywords=[]
+    
+    
+    
+    for item in get_response_data["keyword_config"]:
+        if item['is_negative']:
+            #print("yes negative kewyword ",item['keyword'])
+            dict1={'text':item['keyword'],'match_type':item['match_type'],'is_negative':True}
+            #campaign_keywords.append(dict1)
+            continue
+        keyword=item['keyword']
+        cpc=item['bid_value']
+        dict1={'text':item['keyword'],'match_type':item['match_type'],'bid_value':max(13,cpc)}
+        campaign_keywords.append(dict1)
+         
+    for item in keyword_dict[campaign_id]:
+        keyword=item['text']
+        #print(item)
+        if check_keyword_in_config(keyword,get_response_data["keyword_config"]):
+            continue
+        campaign_keywords.append(item)
+        print("added keyword is item and item is ",item)
+       
+    print("check 4",campaign_keywords)
+    bid_targeting={}
+    if get_response_data["campaign_configs"]["bid_targeting"]=='AUTO':
+       cpc_auto=get_response_data['bid']
+       bid_targeting= {"targeting_type":get_response_data["campaign_configs"]["bid_targeting"],"auto_targeting":{"base_bid":cpc_auto}}
+    elif get_response_data["campaign_configs"]["bid_targeting"]=='KEYWORD':
+       print("yes keyword type campaign it is ")
+       bid_targeting= {"targeting_type":get_response_data["campaign_configs"]["bid_targeting"],"subcategory_targeting": []} 
+    elif get_response_data["campaign_configs"]["bid_targeting"]=="SUBCATEGORY": 
+       #"bid_targeting":{"targeting_type":"SUBCATEGORY","subcategory_targeting":[{"sub_category_id":"f11e6ee4-03ae-406b-b6a0-d886c514ae9a","bid_value":9}]}
+       category_targeting=[]
+       for item in  get_response_data["subcategory_targeting"]:
+          cpc=item['bid']
+          category_targeting.append({"sub_category_id":item["subcategory_id"],'bid_value':max(cpc,15)})    
+       bid_targeting= {"targeting_type":get_response_data["campaign_configs"]["bid_targeting"],"subcategory_targeting": category_targeting} 
+    
+    payload ={
+    "brand_id": get_response_data['brand_id'],
+    "campaign_type": get_response_data["campaign_type"],
+    "campaign_sub_type": get_response_data["campaign_sub_type"],
+    "campaign_name": get_response_data['campaign_name'],
+    "ro_id": get_response_data['ro_id'],
+    "budget_type": get_response_data['budget_type'],
+    "bid": get_response_data['bid'],
+    "daily_budget": get_response_data['daily_budget'],
+    "lifetime_budget": 0,
+    "bidding_strategy_type": get_response_data["bidding_strategy_type"],
+    "start_date": get_response_data["start_date"],
+    "end_date": get_response_data["end_date"],
+    "bid_multipliers": {
+        "tos": {"base": get_response_data["campaign_configs"]["multiplier_config"]['tos']['base'], "premium": get_response_data["campaign_configs"]["multiplier_config"]['tos']['premium'], "super_saver": 0},
+        "zpu": {"base": get_response_data["campaign_configs"]["multiplier_config"]['zpu']['base'], "premium": get_response_data["campaign_configs"]["multiplier_config"]['zpu']['premium'], "super_saver": 0}},
+    
+    "geo_targeting": {
+        "city": {"include": cities, "exclude": []},
+        "type": geo_targeting_type
+    },
+    
+    "product_config": {
+        "product_variant_ids": product_ids,
+        "type": "MANUAL"
+    },
+    "bid_targeting": bid_targeting,
+    "keyword_targeting": campaign_keywords,
+    "campaignId": get_response_data["campaign_configs"]["campaign_id"]
+     }
+    #return False
+    response_updation=requests.put(url, headers=headers, json=payload)
+    if response_updation.status_code == 200:
+        print("campaign updated successfully]")
+    else:
+        print("response_updation ",response_updation.status_code )
+        return False,response_updation.text 
+  except:
+    return False ,"error"
+  
+  return True,"Successfull"
+
+
+def campaign_enable(headers,campaign_id,input_dict,output_df):
+     
+     try:         
+        url=f"https://fcc.zepto.co.in/ads-campaign-manager/api/v1/campaigns/{campaign_id}/activate"
+        #url_deactivate=f"https://fcc.zepto.co.in/ads-campaign-manager/api/v1/campaigns/{campaign_id}/pause" # for pausing
+        payload={"brand_id":"6efea0fb-34a3-4126-8de7-c51aebe034d4"}
+        get_response=requests.post(url,headers=headers,json=payload)
+        #get_response=requests.post(url_deactivate,headers=headers,json=payload) # for deactivate
+        if get_response.status_code !=200:
+            print("error ",get_response.text)
+            return False,get_response.text
+        else :
+            print("campaign_activated")
+            return True,"successfull"
+     except:
+         print("error ",get_response.text)
+         return False,get_response.text
+
+
+def city_addition(c_name,city_dict):
+    if c_name.split("|")[2].strip() in city_dict:
+        #print(f"yes {c_name.split("|")[2].strip()} found and cities are ",city_dict[c_name.split("|")[2].strip()])
+        return city_dict[c_name.split("|")[2].strip()]
+    else:
+        return False
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def bid_update(headers,campaign_id,input_dict,output_df,city_dict):
+    
+  try:      
+    url_pause=f"https://fcc.zepto.co.in/ads-campaign-manager/api/v1/campaigns/{campaign_id}/pause"
+    payload_pause={"brand_id":"6efea0fb-34a3-4126-8de7-c51aebe034d4"}
+    reponse_pause=requests.post(url_pause,json=payload_pause,headers=headers)
+    print(reponse_pause.text)
+    if reponse_pause.status_code!=200:
+       return False,"error"   
+    print(reponse_pause.json()['"message"'])
+    return True,"successfull"
+    
+    
+    
+    
+    
+    
+    #print("check3")
+    
+    
+    url=f"https://fcc.zepto.co.in/ads-campaign-manager/api/v1/campaigns/pla/{campaign_id}"
+    #print(authorization)
+    get_response=requests.get(url,headers=headers)
+    get_response_data=get_response.json() 
+    if get_response.status_code !=200:
+        print("error ",get_response.text)
+        return False,get_response.text
+    
+    c_name=get_response_data['campaign_name']
+    final_campaign_name=input_dict[campaign_id]['Campaign_name']
+    print("Campaign name is ",c_name," final campaign name is ",final_campaign_name)
+    cities=[]
+    if(len(get_response_data["city_targeting"])==0):
+        geo_targeting_type="ALL"
+    else:
+         cities=[item['city_id'] for item in get_response_data["city_targeting"]]
+         geo_targeting_type="MANUAL"
+    
+    
+    """
+    if city_addition(c_name,city_dict)!=False:
+        cities=city_addition(c_name,city_dict)
+        print("yes found " ,cities)"""
+        #print("check 3",cities)
+    
+    product_ids=[item["product_variant_id"] for item in get_response_data["ad_assets_pla"]]       
+    
+    url_minimum_category="https://fcc.zepto.co.in/ads-campaign-manager/api/v1/suggestions/subcategory"
+    payload_minimum_category={"brand_id":get_response_data['brand_id'],
+             "pv_ids":product_ids,
+             "type":"MANUAL"}
+    
+    cat_response=requests.post(url_minimum_category,headers=headers,json=payload_minimum_category)
+    cat_response_data=cat_response.json()
+    print(cat_response.status_code)
+    cat_min_bid={}
+    cat_max_bid={}
+    try:
+        for item in cat_response_data['subcategory_bid']:
+            subcat_id=item["subcategory_id"]
+            min_bid=item['min_req']
+            cat_min_bid[subcat_id]=min_bid
+            cat_max_bid[subcat_id]=item["max_value"]
+    except:
+        print("error in url_min_cat_response")
+        pass        
+    key_min_bid=13
+    keyword_maximum_data={}
+    try:
+        url_minimum_keyword="https://fcc.zepto.co.in/ads-campaign-manager/api/v1/suggestions/keyword"
+        keyword_response=requests.post(url_minimum_keyword,headers=headers,json=payload_minimum_category)
+        print(keyword_response.status_code)
+        key_response_data=keyword_response.json()
+        key_min_bid= key_response_data['min_req']
+        for item in key_response_data['keywords']:
+            keyword_maximum_data[item['text'].strip().lower()]=max(item["exact_bid"],item["phrase_bid"],item["broad_bid"])
+    
+    except:
+        print("error in url_minimum_keyword")
+        pass    
+   
+    print("Campaign name is ",c_name ," minimimum category bid is ",cat_min_bid , "minimium bid for keyword is ",key_min_bid)
+    campaign_keywords=[]
+    #is_duplicate=[]
+    try:    
+        for item in get_response_data["keyword_config"]:
+            if item['is_negative']:
+                #print("yes negative kewyword ",item['keyword'])
+                dict1={'text':item['keyword'],'match_type':item['match_type'],'is_negative':True}
+                campaign_keywords.append(dict1)
+                continue
+            if len(item)==0:
+                continue
+            
+            keyword=item['keyword'].strip().lower()
+            if len(keyword)==0:
+                print("yes len of 0 keyword found")
+                continue
+            #cpc=(item['bid_value']*1.5)
+            
+            final_cpc=(item['bid_value'])
+            
+            original_cpc=final_cpc
+            
+            #if keyword.strip() in is_duplicate:
+            #    continue
+            #is_duplicate.append(keyword.strip())
+            #cpc=cpc*2
+            maximum_bid=40
+            if keyword in keyword_maximum_data:
+                maximum_bid=keyword_maximum_data[keyword.strip().lower()]
+            """    
+            #print("keyword is ",keyword)
+            
+            if (keyword.lower().strip()=="dildo" and c_name.split("|")[0].upper().strip()=="GM"):
+                cpc=int(cpc*1.6)  
+            if (keyword.lower().strip()=="dildo" and c_name.split("|")[0].upper().strip()=="MM"):
+                cpc=int(cpc*1.45)  
+            if (keyword.lower().strip()=="vibrator" and c_name.split("|")[0].upper().strip()=="MM"):
+                cpc=int(cpc*1.35) 
+            #if ((keyword.lower().strip()=="mymuse" or keyword.lower().strip()=="my muse") and c_name.split("|")[0].upper().strip()=="GM"):
+            #    cpc=int(cpc*1.6)      """
+            
+            #print("keyword is ",keyword)
+            """
+            if keyword in input_dict[campaign_id]['keyword']:
+                final_cpc=final_cpc*0.75
+                #multipl= float(input_dict[campaign_id]['bid'][input_dict[campaign_id]['keyword'].index(keyword)])
+                #final_cpc=cpc*multipl
+                print("YES in Input Keyword  is ", keyword, "original cpc is ",original_cpc," maximum cpc is ",maximum_bid," final cpc is ",max(final_cpc,key_min_bid))
+                #if (c_name.split("|")[0].strip()=="HRS" or c_name.split("|")[0].strip()=="BR" or c_name.split("|")[0].strip()=="LINERS" or c_name.split("|")[1].strip()=="130dcdac-39d5-48e5-87ce-18049a150d68"):
+                ##    cpc=min(maximum_bid,30)
+                #else:
+                #    cpc=input_dict[campaign_id]['bid'][input_dict[campaign_id]['keyword'].index(keyword)]    
+                    
+            #    print("YES in Input Keyword  is ", keyword, "original cpc is ",original_cpc," maximum cpc is ",maximum_bid," final cpc is ",max(final_cpc,key_min_bid))
+            else:
+             print(" Keyword  is ", keyword, "original cpc is ",original_cpc," maximum cpc is ",maximum_bid," final cpc is ",max(final_cpc,key_min_bid))    
+            
+            #final_cpc=max(int(cpc),maximum_bid,35)
+            #final_cpc=original_cpc
+            #if cpc<maximum_bid:
+            #   final_cpc=min(35,maximum_bid)      
+            
+            #final_cpc=min(35,maximum_bid)
+            #final_cpc=cpc*1.5
+            #if maximum_bid==100:
+            #    final_cpc=cpc 
+                        
+            
+           # if item['match_type']=="BROAD":
+           #      item['match_type']="PHRASE"
+           # if (c_name.split("|")[0].strip()=="BM"):
+            #    final_cpc=cpc*1.15 
+           # if (c_name.split("|")[0].strip()=="GM"):
+           #     final_cpc=cpc*1.35   
+           # if (c_name.split("|")[0].strip()=="HRS"):
+           #     final_cpc=cpc*1.3  """       
+            
+            #final_cpc= max(cpc*1.5,key_min_bid)
+            #if item['match_type']=="BROAD":
+            #     item['match_type']=="PHRASE"
+            
+            #print("keyword is ",keyword," current bid is ",original_cpc," maximum id is ",maximum_bid," minimum_bid is ",key_min_bid," final bid is ",int(final_cpc)," match type is ",item['match_type'])
+            #final_cpp=max(final_cpc*0.75,key_min_bid)
+            dict1={'text':item['keyword'],'match_type':item['match_type'],'bid_value': int(final_cpc)}
+            #print(dict1)
+            campaign_keywords.append(dict1)
+        #print("check 4",campaign_keywords)
+    except:
+        if c_name.split("|")[0].strip()=="SPA" or c_name.split("|")[1].strip()=="CAT":
+            pass
+        else:
+            print("no keyword found")
+            return False,KeyError
+    
+   
+        
+    #print("check 3")
+    bid_targeting={}
+    if get_response_data["campaign_configs"]["bid_targeting"]=='AUTO':   
+       cpc_auto=get_response_data['bid']
+
+       #cpc_auto=input_dict[campaign_id]['bid'][0]
+       
+       #print("yes auto found and input bid is ", cpc_auto)
+       bid_targeting= {"targeting_type":get_response_data["campaign_configs"]["bid_targeting"],"auto_targeting":{"base_bid":max(13,key_min_bid,int(cpc_auto))}}
+    
+    elif get_response_data["campaign_configs"]["bid_targeting"]=='KEYWORD':
+       print("yes keyword type campaign it is ")
+       bid_targeting= {"targeting_type":get_response_data["campaign_configs"]["bid_targeting"],"subcategory_targeting": []} 
+    
+    elif get_response_data["campaign_configs"]["bid_targeting"]=="SUBCATEGORY": 
+       #"bid_targeting":{"targeting_type":"SUBCATEGORY","subcategory_targeting":[{"sub_category_id":"f11e6ee4-03ae-406b-b6a0-d886c514ae9a","bid_value":9}]}
+       category_targeting=[]
+       for item in  get_response_data["subcategory_targeting"]:
+          
+          cpc=int(item['bid'])
+          original_category_cpc=cpc
+          cat_id=item["subcategory_id"]
+          min_bid= cat_min_bid[cat_id]        
+           
+          """
+          if str(item["subcategory_id"]).strip() in input_dict[campaign_id]['keyword']:
+              if (c_name.split("|")[0].strip()=="HRS" or c_name.split("|")[0].strip()=="BR" or c_name.split("|")[0].strip()=="LINERS" or c_name.split("|")[1].strip()=="130dcdac-39d5-48e5-87ce-18049a150d68"):
+                    cpc=min(cat_max_bid[cat_id],30)
+              else:
+                cpc=input_dict[campaign_id]['bid'][input_dict[campaign_id]['keyword'].index(item["subcategory_id"])]
+              
+              print("oriignal cat bid is ",original_category_cpc," minimum bid is ",cat_min_bid[cat_id]," maximum bid is ",cat_max_bid[cat_id]," final bid is ", max(cpc,13))  """  
+          
+         
+          cpc=max(cpc*0.75,min_bid)
+          print("oriignal cat bid is ",original_category_cpc," minimum bid is ",cat_min_bid[cat_id]," maximum bid is ",cat_max_bid[cat_id]," final bid is ", int(max(cpc,13)))   
+          category_targeting.append( {"sub_category_id":item["subcategory_id"],'bid_value':max(int(cpc),13) })    
+       bid_targeting= {"targeting_type":get_response_data["campaign_configs"]["bid_targeting"],"subcategory_targeting": category_targeting} 
+    
+    
+    #bid_multiplier= {
+    #    "tos": {"base": get_response_data["campaign_configs"]["multiplier_config"]['tos']['base'], "premium": get_response_data["campaign_configs"]["multiplier_config"]['tos']['premium'], "super_saver": 0},
+    #    "zpu": {"base": get_response_data["campaign_configs"]["multiplier_config"]['zpu']['base'], "premium": get_response_data["campaign_configs"]["multiplier_config"]['zpu']['premium'], "super_saver": 0}}
+    
+    #return
+    bid_multiplier= {
+        "tos": {"base": 0, "premium":0, "super_saver": 0},
+        "zpu": {"base": 0, "premium": 0, "super_saver": 0}}
+    
+    """
+    output_bid_multiplier=  multiplier(c_name,get_response_data)
+    if output_bid_multiplier!=False:
+        print("yes bid multiplier applied")
+        bid_multiplier=output_bid_multiplier
+        print(bid_multiplier)"""
+
+    #return
+    payload ={
+    "brand_id": get_response_data['brand_id'],
+    "campaign_type": get_response_data["campaign_type"],
+    "campaign_sub_type": get_response_data["campaign_sub_type"],
+    #"campaign_name": get_response_data['campaign_name'],
+    "campaign_name": final_campaign_name,
+    "ro_id": get_response_data['ro_id'],
+    "budget_type": get_response_data['budget_type'],
+    "bid": get_response_data['bid'],
+    "daily_budget": get_response_data['daily_budget'],
+    #"daily_budget": 8000,
+    "lifetime_budget": 0,
+    "bidding_strategy_type": get_response_data["bidding_strategy_type"],
+    "start_date": get_response_data["start_date"],
+    "end_date": get_response_data["end_date"],
+    "bid_multipliers":bid_multiplier,
+    
+    "geo_targeting": {
+        "city": {"include": cities, "exclude": []},
+        "type": geo_targeting_type
+    },
+    
+    "product_config": {
+        "product_variant_ids": product_ids,
+        "type": "MANUAL"
+    },
+    "bid_targeting": bid_targeting,
+    "keyword_targeting": campaign_keywords,
+    "campaignId": get_response_data["campaign_configs"]["campaign_id"]
+    }
+    #return False
+    response_updation=requests.put(url, headers=headers, json=payload)
+    if response_updation.status_code == 200:
+        print("campaign updated successfully]")
+    else:
+        print("response_updation ",response_updation.status_code )
+        return False,response_updation.text 
+  except:
+    return False ,"error"
+  
+  return True,"Successfull"
+
+
+
+def multiplier(c_name,get_response_data):
+   try: 
+    
+    
+    tos_value=30
+    zpu_value=30
+    
+    if (c_name.split("|"))[0].strip().upper()=="SHAKER" or (c_name.split("|"))[0].strip().upper()=="HAND GRIP":
+         tos_value=0
+         zpu_value=0 
+
+    if (c_name.split("|"))[0].strip().upper()=="BM":
+         tos_value=0
+         zpu_value=0
+    if (c_name.split("|"))[0].strip().upper()=="GM":
+         tos_value=20
+         zpu_value=20
+    if(c_name.split("|"))[0].strip().upper()=="MM":
+         tos_value=0
+         zpu_value=0
+    if(c_name.split("|"))[0].strip().upper()=="DPP":
+         tos_value=0
+         zpu_value=0    
+    if(c_name.split("|"))[0].strip().upper()=="SPAD":
+         tos_value=0
+         zpu_value=0  
+    if(c_name.split("|"))[0].strip().upper()=="XXXL":
+         tos_value=0
+         zpu_value=0 
+    if(c_name.split("|"))[0].strip().upper()=="PKIT":
+         tos_value=0
+         zpu_value=0  
+    if(c_name.split("|"))[0].strip().upper()=="MFR":
+         tos_value=0
+         zpu_value=0                   
+    bid_multiplier= {
+       "tos": {"base": tos_value, "premium": get_response_data["campaign_configs"]["multiplier_config"]['tos']['premium'], "super_saver": 20},
+        "zpu": {"base": zpu_value, "premium": get_response_data["campaign_configs"]["multiplier_config"]['zpu']['premium'], "super_saver": 20}}
+    return bid_multiplier
+   except:
+       return False
+   
+if __name__ == "__main__":
+    main()
+    
+    
+    
