@@ -1,0 +1,334 @@
+import requests
+import json
+import pandas as pd
+from datetime import datetime
+today_date = datetime.today().strftime('%Y-%m-%d')
+
+product_line_cat_id = {
+    "SANITARY PADS": "4ec95583-3060-4d3a-95ed-757a6728b32a",
+    "MASSAGER": "1c3ad1c2-76e8-4097-b2ca-99c180d23b96",
+    "MANUAL FACE RAZOR": "56983fec-fd04-4190-9587-20e0a6fc4642",
+    "DISPOSABLE PERIOD PANTY": "dade758f-54cb-4d2f-840d-6e07f746c43a",
+    "XXXL PADS": "4ec95583-3060-4d3a-95ed-757a6728b32a",
+    "MATERNITY PADS": "4ec95583-3060-4d3a-95ed-757a6728b32a",
+    "CRAMP HEAT PATCHES": "3b093fa7-c594-42ca-a630-5433b8576c89",
+    "PREGNANCY KIT": "f11e6ee4-03ae-406b-b6a0-d886c514ae9a",
+    "MINI MASSAGER": "1c3ad1c2-76e8-4097-b2ca-99c180d23b96",
+    "GROOVE MASSAGER": "1c3ad1c2-76e8-4097-b2ca-99c180d23b96",
+    "PREMIUM MASSAGER": "1c3ad1c2-76e8-4097-b2ca-99c180d23b96",
+    "LINERS": "4ec95583-3060-4d3a-95ed-757a6728b32a",
+    "DISPOSABLE PERIOD PANTY#SAMPLE": "4a2fc9fc-3003-40b4-903e-a3baf6002221",
+    "HAIR REMOVAL SPRAY": "56983fec-fd04-4190-9587-20e0a6fc4642",
+    "BODY RAZOR": "56983fec-fd04-4190-9587-20e0a6fc4642"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def login_authorization():   
+   url="https://fcc.zepto.co.in/api/v1/auth/sign-in?applicationId=d0cd4873-7cb3-4c7c-9a25-3b109a0d2301"
+  
+ 
+   payload={"email": email, "password": password}
+   
+   response=requests.post(url,json=payload)
+   
+   if response.status_code!=200:
+       print("error in login response ",response.status_code,response.text)
+   response_data=response.json()
+   return response_data['jwtToken']
+
+
+
+
+# python azah_campaign_creation.py
+def main():
+    
+    
+    
+    df=pd.read_excel(r"C:\Users\Gopal\Desktop\blinki_automate\Zepto\zepto_campaign_creation.xlsx",sheet_name='input_azah')
+    excel_file=r"C:\Users\Gopal\Desktop\blinki_automate\Zepto\zepto_campaign_creation.xlsx"
+    cities_dict = {}
+    products_dict = {}
+    budget_dict={}
+    output_df=df.copy()
+    output_df['status']='no'
+    output_df['new_C_id']=''
+    for campaign_name, group in df.groupby('campaign'):
+        cities = group[group['entity'] == 'cities']['city_id'].dropna().apply(lambda x: x.split(',')).tolist()
+        cities_dict[campaign_name] = [item for sublist in cities for item in sublist]
+        products = group[group['entity'] == 'product']['product_id'].dropna().apply(lambda x: x.split(',')).tolist()
+        products_dict[campaign_name] = [item.lower() for sublist in products for item in sublist]
+        daily_budget = group[group['entity'] == 'campaign']['daily_budget'].iloc[0]
+        budget_dict[campaign_name] = daily_budget
+
+    keywords_dict = {}
+    for campaign_name, group in df.groupby('campaign'):
+        keyword_list = []
+        for _, row in group.iterrows():
+            keywords = row['keyword']
+            if pd.isna(keywords) or keywords == '':
+                continue
+            for keyword in keywords.split(','):
+                if keyword=="":
+                    continue
+                
+                if  keyword.split('|')[1].strip().upper()!="N":
+                    keyword_text, match_type, bid = keyword.split('|')
+                    keyword_text=keyword_text.strip()
+                    match_type=match_type.strip()
+                    bid=bid.strip()
+                else:
+                    keyword_text, match_type = keyword.split('|')
+                    keyword_text=keyword_text.strip()
+                    match_type=match_type.strip()
+                      
+                if match_type.upper() == 'E':
+                    match_type_str = 'EXACT'
+                    keyword_dict = {"text": keyword_text, "match_type": match_type_str, "bid_value": int(bid)}
+                elif match_type.upper() == 'P':
+                    match_type_str = 'PHRASE'
+                    keyword_dict = {"text": keyword_text, "match_type": match_type_str, "bid_value": int(bid)}
+                elif match_type.upper() == 'B':
+                    match_type_str = 'BROAD'
+                    keyword_dict = {"text": keyword_text, "match_type": match_type_str, "bid_value": int(bid)}  
+                elif match_type.upper() == 'N':
+                    match_type_str = 'PHRASE'
+                    keyword_dict = {"text": keyword_text, "match_type": match_type_str, "is_negative": True}      
+                keyword_list.append(keyword_dict)
+        keywords_dict[campaign_name] = keyword_list
+    
+    #for campaign_nm in keywords_dict.keys():
+    #    print("campaign name is", campaign_nm)
+    
+    output_df=campaign_creation(products_dict,budget_dict,keywords_dict,cities_dict,output_df)
+    with pd.ExcelWriter(excel_file, engine='openpyxl', mode='a',if_sheet_exists='replace') as writer:
+        output_df.to_excel(writer, sheet_name='output_azah', index=False) 
+   
+
+def campaign_creation(products_dict,budget_dict,keywords_dict,cities_dict,output_df):
+        
+    
+    cnt=0
+    for campaign_nm in keywords_dict.keys():   
+        if cnt==1:
+            break
+        #cnt+=1    
+        try:    
+            #print("campaign_name is ",campaign_nm )
+            url = "https://fcc.zepto.co.in/ads-campaign-manager/api/v1/campaigns/pla"
+            #author=login_authorization()
+            author="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzMjZiNDBhMS1kZGJiLTQ2ODMtODRjZC1mY2U1NTFkODRhNjYiLCJyb2xlSWQiOiIwM2JiODI2NS00ZDgyLTQxYTEtYmY1ZS1iNTJiOTgyOWNiZTkiLCJodHRwczovL2hhc3VyYS5pby9qd3QvY2xhaW1zIjp7IngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6IkRlZmF1bHQiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbIkRlZmF1bHQiXX0sInJvbGVOYW1lIjoiQnJhbmQgQWRtaW4iLCJlbWFpbElkIjoic2h1YmhhbmsuamFpbkBwb3dlcmhvdXNlOTEuY29tIiwic2Vzc2lvbklkIjoiZGIzY2JiMmMtYjdlYy00MWIwLWJiMjgtYTY0ZTAyZDBlYWZjLTE3NDA1NzgwMjI2MTgiLCJhcHBsaWNhdGlvbklkIjoiZDBjZDQ4NzMtN2NiMy00YzdjLTlhMjUtM2IxMDlhMGQyMzAxIiwiY2F0ZWdvcnkiOiJFeHRlcm5hbCIsImV4cCI6MTc0MDU5NDU5OSwidXNlcklkIjoiMzI2YjQwYTEtZGRiYi00NjgzLTg0Y2QtZmNlNTUxZDg0YTY2IiwiaWF0IjoxNzQwNTc4MDIyfQ.2X5ez06ng4JxzwW5TVMf_P3ULlrH9ULGVXCfCREGzhY"
+            #auth="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5MTJkMDdjNC0wMTRjLTQ2MWItYjkxNC02ZjUwNTE3YWEzOTQiLCJyb2xlSWQiOiJmYjYzMDZiMy1jYmMxLTQxODEtYmYyMS1lNGM0Y2YwMDUzODUiLCJodHRwczovL2hhc3VyYS5pby9qd3QvY2xhaW1zIjp7IngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6IkRlZmF1bHQiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbIkRlZmF1bHQiXX0sInJvbGVOYW1lIjoiRXh0ZXJuYWwgU3VwZXIgQWRzIEFkbWluIiwiZW1haWxJZCI6ImFxaWJAcG93ZXJob3VzZTkxLmNvbSIsInNlc3Npb25JZCI6IjZjNTM3OTk2LWM0N2YtNDQ4OC1hMjJiLTcwMTc1MTcwN2ExNy0xNzQwNDcwMTUxNDg0IiwiYXBwbGljYXRpb25JZCI6ImQwY2Q0ODczLTdjYjMtNGM3Yy05YTI1LTNiMTA5YTBkMjMwMSIsImNhdGVnb3J5IjoiRXh0ZXJuYWwiLCJleHAiOjE3NDA1MDgxOTksInVzZXJJZCI6IjkxMmQwN2M0LTAxNGMtNDYxYi1iOTE0LTZmNTA1MTdhYTM5NCIsImlhdCI6MTc0MDQ3MDE1MX0.5seViYUoPMbuKCW0BUDqMp7XrqLgGu6TDR3Ra03ga-o"
+            #print("authorization ",author)
+            headers = {
+                #for azah
+                #"Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJlNGZlOWQzZi0zZDVlLTQ4MzQtOTIzOS01NzU1ZjM0YTJiMjAiLCJyb2xlSWQiOiJmYjYzMDZiMy1jYmMxLTQxODEtYmYyMS1lNGM0Y2YwMDUzODUiLCJodHRwczovL2hhc3VyYS5pby9qd3QvY2xhaW1zIjp7IngtaGFzdXJhLWRlZmF1bHQtcm9sZSI6IkRlZmF1bHQiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbIkRlZmF1bHQiXX0sInJvbGVOYW1lIjoiRXh0ZXJuYWwgU3VwZXIgQWRzIEFkbWluIiwiZW1haWxJZCI6InF1aWNrY29tbWVyY2VAcG93ZXJob3VzZTkxLmNvbSIsImFwcGxpY2F0aW9uSWQiOiJkMGNkNDg3My03Y2IzLTRjN2MtOWEyNS0zYjEwOWEwZDIzMDEiLCJjYXRlZ29yeSI6IkV4dGVybmFsIiwiZXhwIjoxNzM2Mjc0NTk5LCJ1c2VySWQiOiJlNGZlOWQzZi0zZDVlLTQ4MzQtOTIzOS01NzU1ZjM0YTJiMjAiLCJpYXQiOjE3MzYxOTA1NjV9.FlrjFRx41spbnpoh3aVIQNQ7xotRpDVZi5P5jX2mNoc",
+                #for slovic
+                "Authorization":author,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Referer": "https://brands.zepto.co.in/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                "Origin": "https://brands.zepto.co.in",
+                "Accept-Encoding": "gzip, deflate, br",
+            }
+
+            # Your campaign data (payload)
+            payload={}
+            #print("keywords are ", keywords_dict[campaign_nm])
+            if campaign_nm.split("|")[2].strip()=="SPA":
+                    payload = {
+                        "brand_id": "6efea0fb-34a3-4126-8de7-c51aebe034d4", # for azah
+                        
+                        "campaign_type": "PLA",
+                        "campaign_sub_type": "AUCTION",
+                        "campaign_name": campaign_nm,
+                        "ro_id": "",
+                        "budget_type": "DAILY_BUDGET_WITH_MAX_CAP",
+                        "bid": 16,
+                        "daily_budget": int(budget_dict[campaign_nm]),
+                        "lifetime_budget": 0,
+                        "bidding_strategy_type": "DYNAMIC_UP_AND_DOWN",
+                        "start_date": f"{today_date}",
+                        "end_date": None,
+                        "bid_multipliers": {
+                            "tos": {"base": 0, "premium": 0},
+                            "zpu": {"base": 0, "premium": 0}
+                        },
+                        "geo_targeting": {
+                            "city": {
+                                "include": cities_dict[campaign_nm],
+                                "exclude": []
+                            },
+                        "type": "MANUAL",
+                        },
+                        
+                        "product_config": {
+                            "product_variant_ids": products_dict[campaign_nm],
+                            #"type": "ALL"
+                            "type":"MANUAL"
+                        },
+                        "bid_targeting": {
+                            "targeting_type": "AUTO",
+                            "auto_targeting": {
+                                "base_bid": 15}    
+                        },
+                       "keyword_targeting":keywords_dict[campaign_nm],
+                        "status": "ENABLED"
+                    }    
+            elif  campaign_nm.split("|")[0].strip()=="CAT":
+                    
+                    
+                    """
+                    if (campaign_nm.split("|")[0].strip()=="MM" or campaign_nm.split("|")[0].strip()=="BM" or campaign_nm.split("|")[0].strip()=="GM"):  
+                       subcaty_id="1c3ad1c2-76e8-4097-b2ca-99c180d23b96" # for personal massager and vibrator
+                       cat_bid_value=21
+                    elif (campaign_nm.split("|")[0].strip()=="SPAD" or campaign_nm.split("|")[0].strip()=="XXXL" or  campaign_nm.split("|")[0].strip()=="LINERS"):  
+                       subcaty_id="4ec95583-3060-4d3a-95ed-757a6728b32a"  
+                       cat_bid_value=18
+                    elif (campaign_nm.split("|")[0].strip()=="DPP"):  
+                       subcaty_id="dade758f-54cb-4d2f-840d-6e07f746c43a"  
+                       cat_bid_value=20
+                    elif (campaign_nm.split("|")[0].strip()=="MFR" or campaign_nm.split("|")[0].strip()=="HRS" or campaign_nm.split("|")[0].strip()=="BR"):  
+                       subcaty_id="56983fec-fd04-4190-9587-20e0a6fc4642" 
+                       cat_bid_value=15 """
+                    
+                    subcaty_id=product_line_cat_id[campaign_nm.split("|")[1].strip()]
+                    cat_bid_value=16  
+                    if campaign_nm.split("|")[1].strip() not in product_line_cat_id.keys():
+                        continue
+                    payload = {
+                        "brand_id": "6efea0fb-34a3-4126-8de7-c51aebe034d4", # for azah
+                       
+                        "campaign_type": "PLA",
+                        "campaign_sub_type": "AUCTION",
+                        "campaign_name": campaign_nm,
+                        "ro_id": "",
+                        "budget_type": "DAILY_BUDGET_WITH_MAX_CAP",
+                        "bid": 16,
+                        "daily_budget": int(budget_dict[campaign_nm]),
+                        "lifetime_budget": 0,
+                        "bidding_strategy_type": "DYNAMIC_UP_AND_DOWN",
+                        "start_date": f"{today_date}",
+                        "end_date": None,
+                        "bid_multipliers": {
+                            "tos": {"base": 0, "premium": 0},
+                            "zpu": {"base": 0, "premium": 0}
+                        },
+                        "geo_targeting": {
+                            "city": {
+                                "include": cities_dict[campaign_nm],
+                                "exclude": []
+                            },
+                        "type": "MANUAL",
+                        },
+                        
+                        "product_config": {
+                            "product_variant_ids": products_dict[campaign_nm],
+                            #"type": "ALL"
+                            "type":"MANUAL"
+                        },
+                        "bid_targeting": {
+                            "targeting_type": "SUBCATEGORY",
+                        "subcategory_targeting": [
+                          {
+                            "sub_category_id": subcaty_id,
+                            "bid_value": cat_bid_value
+                          }]},
+                        "keyword_targeting":keywords_dict[campaign_nm],
+                        "status": "ENABLED"
+                      }
+            else:
+                payload = {
+                        "brand_id": "6efea0fb-34a3-4126-8de7-c51aebe034d4", # for azah
+                      
+                        "campaign_type": "PLA",
+                        "campaign_sub_type": "AUCTION",
+                        "campaign_name": campaign_nm,
+                        "ro_id": "",
+                        "budget_type": "DAILY_BUDGET_WITH_MAX_CAP",
+                        "bid": 16,
+                        "daily_budget": int(budget_dict[campaign_nm]),
+                        "lifetime_budget": 0,
+                        "bidding_strategy_type": "DYNAMIC_UP_AND_DOWN",
+                        "start_date": f"{today_date}",
+                        "end_date": None,
+                        "bid_multipliers": {
+                            "tos": {"base": 0, "premium": 0},
+                            "zpu": {"base": 0, "premium": 0}
+                        },
+                        "geo_targeting": {
+                            "city": {
+                                "include": cities_dict[campaign_nm],
+                                "exclude": []
+                            },
+                            "type": "MANUAL",
+                        },
+                        
+                        "product_config": {
+                            "product_variant_ids": products_dict[campaign_nm],
+                            #"type": "ALL"
+                            "type":"MANUAL"
+                        },
+                        "bid_targeting": {
+                            "targeting_type": "KEYWORD",
+                            "subcategory_targeting":[]
+                            
+                        },
+                        "keyword_targeting":keywords_dict[campaign_nm],
+                        "status": "ENABLED",    
+                    }
+                    # FOR CATEGORY TARGETINN
+            response = requests.post(url, headers=headers, json=payload)
+
+            # Checking the response status
+            if response.status_code == 200:
+                pass
+                #print("Campaign created successfully! campaign id is ",response.json()["marketing_campaign_id"])
+                #print(response.json())  # This will print the response body
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
+                output_df.loc[output_df['campaign'] == campaign_nm, 'status'] =f"url1 Error: {response.status_code} - {response.text}"
+                print("error in url_1")
+                continue
+
+            campaign_id = (response.json()).get('marketing_campaign_id', None)    
+
+
+            url2=f"https://fcc.zepto.co.in/ads-campaign-manager/api/v1/campaigns/{campaign_id}/approve"
+
+            response = requests.post(url2, headers=headers, data=json.dumps(payload))
+
+            # Checking the response status
+            if response.status_code == 200:
+                #print("Campaign created successfully!")
+                print("campaign name is - ",campaign_nm)
+                #print(response.json())  # This will print the response body
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
+                output_df.loc[output_df['campaign'] == campaign_nm, 'status'] =f"url2 Error: {response.status_code} - {response.text}"
+                print("error in url 2")
+                continue
+            output_df['new_C_id']=''
+            output_df.loc[output_df['campaign'] == campaign_nm, 'status'] = "successful"
+            output_df.loc[output_df['campaign'] == campaign_nm, 'new_C_id'] = str(campaign_id)
+        except:
+            print("error in making campaign ",campaign_nm)
+            continue
+    #print("output_df is ",output_df)
+    return output_df
+
+
+if __name__ == "__main__":
+    main()
